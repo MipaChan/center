@@ -1,5 +1,6 @@
 .customer-badge,
 .product-badge,
+.fgo-badge,
 .order-badge {
     border-radius: var(--border-radius);
     padding: .25em .5rem;
@@ -8,9 +9,29 @@
     font-size: 12px;
     letter-spacing: .3px;
 }
+.fgo-badge {
+    
+    &.status-init {
+        background: #FEEDAF;
+        color: #8A5340;
+    }
+    &.status-running {
+        background: #C8E6C9;
+        color: #256029;
+    }
+    &.status-finished {
+        background: #C8E6C9;
+        color: #256029;
+    }
+    &.status-error {
+        background: #FFCDD2;
+        color: #C63737;
+    }
+
+}
 
 .product-badge {
-    &.status-instock {
+    &.status-init {
         background: #C8E6C9;
         color: #256029;
     }
