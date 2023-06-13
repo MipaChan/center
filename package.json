@@ -2,13 +2,16 @@
     "name": "sakai-vue",
     "version": "3.7.0",
     "scripts": {
-        "dev": "vite",
+        "local:dev": "vite",
         "build": "vite build",
         "preview": "vite preview",
-        "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
+        "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
+        "dev": "wrangler pages dev --node-compat --compatibility-date=2023-06-13 --proxy 5173 -- vite",
+        "deploy": "npm run build && wrangler pages publish ./dist"
     },
     "dependencies": {
         "chart.js": "3.3.2",
+        "pg": "^8.11.0",
         "primeflex": "^3.2.1",
         "primeicons": "^6.0.1",
         "primevue": "3.28.0",
