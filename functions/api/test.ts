@@ -22,6 +22,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     //     text: "SELECT * FROM configs LIMIT 10",
     // });
     // return new Response('Creating Todo: ' + JSON.stringify(result.rows));
-    return new Response('Creating Todo: ' + JSON.stringify({}));
+    return new Response('Creating Txodo: ' + JSON.stringify({}));
 
 }
