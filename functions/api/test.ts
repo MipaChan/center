@@ -1,4 +1,4 @@
-import { Client } from "pg";
+// import { Client } from "pg";
 
 export interface Env {
     // This should be a valid Postgres connection string
@@ -9,17 +9,19 @@ export interface Env {
 
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-    const client = new Client({
-        user: 'postgres',
-        password: 'Slwnzq520..',
-        host: '120.27.143.135',
-        port: 15432,
-        database: 'fgo'
-    })
-    await client.connect()
+    // const client = new Client({
+    //     user: 'postgres',
+    //     password: 'Slwnzq520..',
+    //     host: '120.27.143.135',
+    //     port: 15432,
+    //     database: 'fgo'
+    // })
+    // await client.connect()
 
-    const result = await client.query({
-        text: "SELECT * FROM configs LIMIT 10",
-    });
-    return new Response('Creating Todo: ' + JSON.stringify(result.rows));
+    // const result = await client.query({
+    //     text: "SELECT * FROM configs LIMIT 10",
+    // });
+    // return new Response('Creating Todo: ' + JSON.stringify(result.rows));
+    return new Response('Creating Todo: ' + JSON.stringify({}));
+
 }
