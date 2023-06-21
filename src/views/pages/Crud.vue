@@ -1,16 +1,15 @@
-<script setup>
+<script setup >
 import { FilterMatchMode } from 'primevue/api';
-import { ref, onMounted, onBeforeMount } from 'vue';
-import ProductService from '@/service/ProductService';
+import { ref, reactive, onMounted, onBeforeMount } from 'vue';
 import { useToast } from 'primevue/usetoast';
-
+import { FgoAccountService } from '@/service/FgoAccountService';
 const toast = useToast();
 
 const products = ref(null);
 const productDialog = ref(false);
 const deleteProductDialog = ref(false);
 const deleteProductsDialog = ref(false);
-const product = ref({});
+const fgo_account = ref({});
 const selectedProducts = ref(null);
 const dt = ref(null);
 const filters = ref({});
@@ -22,20 +21,60 @@ const statuses = ref([
     { label: '异常终止', value: 'error' }
 ]);
 
-const productService = new ProductService();
-
+const fgoAccountService = new FgoAccountService();
+const pageConfig = reactive({
+    first: 0,
+    size: 10,
+    total: 0
+})
+const loading = ref(false);
 onBeforeMount(() => {
     initFilters();
 });
-onMounted(() => {
-    productService.getProducts().then((data) => (products.value = data));
+onMounted(async () => {
+    await onPage();
 });
-const formatCurrency = (value) => {
-    return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-};
+async function onPage() {
+    loading.value = true;
+    const data = await fgoAccountService.getFgoAccounts({
+        rows: pageConfig.size,
+        page: pageConfig.first / pageConfig.size + 1
+    })
+    loading.value = false;
+    products.value = data.data
+    pageConfig.total = data.total
+}
 
+async function onFileSelect(e) {
+    loading.value = true;
+    const file = e.files[0];
+    const reader = new FileReader();
+    let blob = await new Promise((resolve) => {
+        reader.onload = (e) => {
+            resolve(e.target.result);
+        };
+        reader.readAsText(file);
+        loading.value = false;
+    });
+    // 卡号：e6ixr60s4密码：Y9gOK2
+    // 卡号：nj4fnkjs密码：219223
+    // 卡号：e914j3o4密码：346328
+
+    const regexp = /卡号：(.*)密码：(.*)/;
+    const data = blob.split('\n').map((item) => {
+        const result = regexp.exec(item);
+        if (result) {
+            return {
+                account: result[1],
+                password: result[2]
+            };
+        }
+    });
+    fgoAccountService.importFgoAccount(data)
+
+}
 const openNew = () => {
-    product.value = {};
+    fgo_account.value = {};
     submitted.value = false;
     productDialog.value = true;
 };
@@ -47,39 +86,38 @@ const hideDialog = () => {
 
 const saveProduct = () => {
     submitted.value = true;
-    if (product.value.name && product.value.name.trim() && product.value.price) {
-        if (product.value.id) {
-            product.value.inventoryStatus = product.value.inventoryStatus.value ? product.value.inventoryStatus.value : product.value.inventoryStatus;
-            products.value[findIndexById(product.value.id)] = product.value;
+    if (fgo_account.value.name && fgo_account.value.name.trim() && fgo_account.value.price) {
+        if (fgo_account.value.id) {
+            fgo_account.value.inventoryStatus = fgo_account.value.inventoryStatus.value ? fgo_account.value.inventoryStatus.value : fgo_account.value.inventoryStatus;
+            products.value[findIndexById(fgo_account.value.id)] = fgo_account.value;
             toast.add({ severity: 'success', summary: 'Successful', detail: 'Product Updated', life: 3000 });
         } else {
-            product.value.id = createId();
-            product.value.code = createId();
-            product.value.image = 'product-placeholder.svg';
-            product.value.inventoryStatus = product.value.inventoryStatus ? product.value.inventoryStatus.value : 'INSTOCK';
-            products.value.push(product.value);
+            fgo_account.value.id = createId();
+            fgo_account.value.code = createId();
+            fgo_account.value.image = 'product-placeholder.svg';
+            fgo_account.value.inventoryStatus = fgo_account.value.inventoryStatus ? fgo_account.value.inventoryStatus.value : 'INSTOCK';
+            products.value.push(fgo_account.value);
             toast.add({ severity: 'success', summary: 'Successful', detail: 'Product Created', life: 3000 });
         }
         productDialog.value = false;
-        product.value = {};
+        fgo_account.value = {};
     }
 };
 
 const editProduct = (editProduct) => {
-    product.value = { ...editProduct };
-    console.log(product);
+    fgo_account.value = { ...editProduct };
     productDialog.value = true;
 };
 
 const confirmDeleteProduct = (editProduct) => {
-    product.value = editProduct;
+    fgo_account.value = editProduct;
     deleteProductDialog.value = true;
 };
 
 const deleteProduct = () => {
-    products.value = products.value.filter((val) => val.id !== product.value.id);
+    products.value = products.value.filter((val) => val.id !== fgo_account.value.id);
     deleteProductDialog.value = false;
-    product.value = {};
+    fgo_account.value = {};
     toast.add({ severity: 'success', summary: 'Successful', detail: 'Product Deleted', life: 3000 });
 };
 
@@ -122,6 +160,7 @@ const initFilters = () => {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS }
     };
 };
+
 </script>
 
 <template>
@@ -133,28 +172,30 @@ const initFilters = () => {
                     <template v-slot:start>
                         <div class="my-2">
                             <Button label="新建" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" />
-                            <Button label="删除" icon="pi pi-trash" class="p-button-danger mr-2"
-                                @click="confirmDeleteSelected" :disabled="!selectedProducts || !selectedProducts.length" />
+                            <Button label="刷新" icon="pi pi-refresh" class="p-button-success mr-2" @click="() => onPage({
+                                rows: pageConfig.size,
+                                page: pageConfig.page - 1
+                            })" />
+
                         </div>
                     </template>
-
                     <template v-slot:end>
                         <Button label="设置" icon="pi pi-cog" class="p-button-success mr-2" @click="openNew" />
-                        <FileUpload mode="basic" accept="image/*" :maxFileSize="1000000" label="Import" chooseLabel="导入"
-                            class="mr-2 inline-block" />
+                        <FileUpload mode="basic" accept=".txt" :maxFileSize="1000000" label="导入" chooseLabel="导入"
+                            class="mr-2 inline-block" customUpload @select="onFileSelect" />
                         <Button label="导出" icon="pi pi-upload" class="p-button-help" @click="exportCSV($event)" />
                     </template>
                 </Toolbar>
 
-                <DataTable ref="dt" :value="products" v-model:selection="selectedProducts" dataKey="id" :paginator="true"
-                    :rows="10" :filters="filters"
-                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                    :rowsPerPageOptions="[5, 10, 25]"
-                    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"
+                <DataTable ref="dt" :value="products" dataKey="id" @page="onPage" :loading="loading"
                     responsiveLayout="scroll">
                     <template #header>
                         <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
                             <h5 class="m-0">FGO 账号管理</h5>
+                            <Paginator @page="onPage" :rows="pageConfig.size" v-model:first="pageConfig.first"
+                                :totalRecords="pageConfig.total"
+                                template="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+                                currentPageReportTemplate="第 {first} ~ {last} (共 {totalRecords} 条)" />
                             <span class="block mt-2 md:mt-0 p-input-icon-left">
                                 <i class="pi pi-search" />
                                 <InputText v-model="filters['global'].value" placeholder="搜索" />
@@ -162,99 +203,67 @@ const initFilters = () => {
                         </div>
                     </template>
 
-                    <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
-                    <Column field="code" header="账号" :sortable="true" headerStyle="width:14%; min-width:10rem;">
+                    <Column field="account" header="账号" headerStyle="width:14%; min-width:10rem;">
                         <template #body="slotProps">
-                            <span class="p-column-title">Code</span>
-                            {{ slotProps.data.code }}
+                            {{ slotProps.data.account }}
                         </template>
                     </Column>
-                    <Column field="inventoryStatus" header="状态" :sortable="true" headerStyle="width:14%; min-width:10rem;">
+                    <Column field="status" header="状态" headerStyle="width:14%; min-width:10rem;">
                         <template #body="slotProps">
-                            <span class="p-column-title">Status</span>
                             <span
-                                :class="'fgo-badge status-' + (slotProps.data.inventoryStatus ? slotProps.data.inventoryStatus.toLowerCase() : '')">{{
-                                    slotProps.data.inventoryStatus }}</span>
+                                :class="'fgo-badge status-' + (slotProps.data.status ? slotProps.data.status.toLowerCase() : '')">{{
+                                    slotProps.data.status }}</span>
                         </template>
                     </Column>
                     <Column header="从者" headerStyle="width:14%; min-width:10rem;">
                         <template #body="slotProps">
                             <span class="p-column-title">Image</span>
-                            <img :src="'demo/images/product/' + slotProps.data.image" :alt="slotProps.data.image"
-                                class="shadow-2" width="100" />
+                            <img :src="'https://static.atlasacademy.io/JP/Faces/f_8001000_bordered.png'"
+                                :alt="slotProps.data.image" class="shadow-2" width="50" />
+                            <img :src="'https://static.atlasacademy.io/JP/Faces/f_1001000_bordered.png'"
+                                :alt="slotProps.data.image" class="shadow-2" width="50" />
+                            <img :src="'https://static.atlasacademy.io/JP/Faces/f_1002000_bordered.png'"
+                                :alt="slotProps.data.image" class="shadow-2" width="50" />
+                            <img :src="'https://static.atlasacademy.io/JP/Faces/f_1003000_bordered.png'"
+                                :alt="slotProps.data.image" class="shadow-2" width="50" />
                         </template>
                     </Column>
-                    <Column field="price" header="材料" :sortable="true" headerStyle="width:14%; min-width:8rem;">
+                    <Column field="price" header="材料" headerStyle="width:14%; min-width:8rem;">
                         <template #body="slotProps">
-                            <span class="p-column-title">Price</span>
-                            {{ formatCurrency(slotProps.data.price) }}
+                            <span v-for="i in slotProps.data.parsed_data['items']">
+                                <Avatar :image="`https://static.atlasacademy.io/JP/Items/${i['itemId']}.png`" class="mr-2"
+                                    size="large" v-badge="i['num']" />
+                            </span>
                         </template>
                     </Column>
-                    <Column field="activity" header="剧情进度" :showFilterMatchModes="false" style="min-width: 12rem">
-                        <template #body="{ data }">
-                            <ProgressBar :value="data.activity" :showValue="false" style="height: 0.5rem"></ProgressBar>
-                        </template>
-                        <template #filter="{ filterModel }">
-                            <Slider v-model="filterModel.value" :range="true" class="m-3"></Slider>
-                            <div class="flex align-items-center justify-content-between px-2">
-                                <span>{{ filterModel.value ? filterModel.value[0] : 0 }}</span>
-                                <span>{{ filterModel.value ? filterModel.value[1] : 100 }}</span>
-                            </div>
-                        </template>
-                    </Column>
-                    <Column field="activity" header="抽卡" :showFilterMatchModes="false" style="min-width: 12rem">
-                        <template #body="{ data }">
-                            <ProgressBar :value="data.activity" :showValue="false" style="height: 0.5rem"></ProgressBar>
-                        </template>
-                        <template #filter="{ filterModel }">
-                            <Slider v-model="filterModel.value" :range="true" class="m-3"></Slider>
-                            <div class="flex align-items-center justify-content-between px-2">
-                                <span>{{ filterModel.value ? filterModel.value[0] : 0 }}</span>
-                                <span>{{ filterModel.value ? filterModel.value[1] : 100 }}</span>
-                            </div>
-                        </template>
-                    </Column>
-                    <!-- <Column field="category" header="Category" :sortable="true" headerStyle="width:14%; min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">Category</span>
-                            {{ slotProps.data.category }}
-                        </template>
-                    </Column>
-                    <Column field="rating" header="Reviews" :sortable="true" headerStyle="width:14%; min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">Rating</span>
-                            <Rating :modelValue="slotProps.data.rating" :readonly="true" :cancel="false" />
-                        </template>
-                    </Column>-->
                     <Column headerStyle="min-width:10rem;">
                         <template #body="slotProps">
-                            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2"
-                                @click="editProduct(slotProps.data)" />
-                            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning mt-2"
+                            <Button label="编辑" text size="small" @click="editProduct(slotProps.data)" />
+                            <Button label="删除" severity="danger" text size="small"
                                 @click="confirmDeleteProduct(slotProps.data)" />
                         </template>
                     </Column>
                 </DataTable>
 
-                <Dialog v-model:visible="productDialog" :style="{ width: '450px' }" header="Product Details" :modal="true"
-                    class="p-fluid">
-                    <img :src="'demo/images/product/' + product.image" :alt="product.image" v-if="product.image" width="150"
-                        class="mt-0 mx-auto mb-5 block shadow-2" />
-                    <div class="field">
-                        <label for="name">Name</label>
-                        <InputText id="name" v-model.trim="product.name" required="true" autofocus
-                            :class="{ 'p-invalid': submitted && !product.name }" />
-                        <small class="p-invalid" v-if="submitted && !product.name">Name is required.</small>
-                    </div>
-                    <div class="field">
-                        <label for="description">Description</label>
-                        <Textarea id="description" v-model="product.description" required="true" rows="3" cols="20" />
-                    </div>
 
+                <Dialog v-model:visible="productDialog" :style="{ width: '450px' }" header="账号详情" :modal="true"
+                    class="p-fluid">
                     <div class="field">
-                        <label for="inventoryStatus" class="mb-3">Inventory Status</label>
-                        <Dropdown id="inventoryStatus" v-model="product.inventoryStatus" :options="statuses"
-                            optionLabel="label" placeholder="Select a Status">
+                        <label for="account">账号</label>
+                        <InputText id="account" v-model.trim="fgo_account.account" required="true" autofocus
+                            :class="{ 'p-invalid': submitted && !fgo_account.account }" />
+                        <small class="p-invalid" v-if="submitted && !fgo_account.account">必须输入账号</small>
+                    </div>
+                    <div class="field">
+                        <label for="password">密码</label>
+                        <InputText id="password" v-model.trim="fgo_account.password" required="true"
+                            :class="{ 'p-invalid': submitted && !fgo_account.password }" />
+                        <small class="p-invalid" v-if="submitted && !fgo_account.password">必须输入密码</small>
+                    </div>
+                    <div class="field">
+                        <label for="inventoryStatus" class="mb-3">状态</label>
+                        <Dropdown id="inventoryStatus" v-model="fgo_account.status" :options="statuses" optionLabel="label"
+                            placeholder="选择状态">
                             <template #value="slotProps">
                                 <div v-if="slotProps.value && slotProps.value.value">
                                     <span :class="'fgo-badge status-' + slotProps.value.value">{{ slotProps.value.label
@@ -270,43 +279,6 @@ const initFilters = () => {
                             </template>
                         </Dropdown>
                     </div>
-
-                    <div class="field">
-                        <label class="mb-3">Category</label>
-                        <div class="formgrid grid">
-                            <div class="field-radiobutton col-6">
-                                <RadioButton id="category1" name="category" value="Accessories"
-                                    v-model="product.category" />
-                                <label for="category1">Accessories</label>
-                            </div>
-                            <div class="field-radiobutton col-6">
-                                <RadioButton id="category2" name="category" value="Clothing" v-model="product.category" />
-                                <label for="category2">Clothing</label>
-                            </div>
-                            <div class="field-radiobutton col-6">
-                                <RadioButton id="category3" name="category" value="Electronics"
-                                    v-model="product.category" />
-                                <label for="category3">Electronics</label>
-                            </div>
-                            <div class="field-radiobutton col-6">
-                                <RadioButton id="category4" name="category" value="Fitness" v-model="product.category" />
-                                <label for="category4">Fitness</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="formgrid grid">
-                        <div class="field col">
-                            <label for="price">Price</label>
-                            <InputNumber id="price" v-model="product.price" mode="currency" currency="USD" locale="en-US"
-                                :class="{ 'p-invalid': submitted && !product.price }" :required="true" />
-                            <small class="p-invalid" v-if="submitted && !product.price">Price is required.</small>
-                        </div>
-                        <div class="field col">
-                            <label for="quantity">Quantity</label>
-                            <InputNumber id="quantity" v-model="product.quantity" integeronly />
-                        </div>
-                    </div>
                     <template #footer>
                         <Button label="Cancel" icon="pi pi-times" class="p-button-text" @click="hideDialog" />
                         <Button label="Save" icon="pi pi-check" class="p-button-text" @click="saveProduct" />
@@ -316,7 +288,7 @@ const initFilters = () => {
                 <Dialog v-model:visible="deleteProductDialog" :style="{ width: '450px' }" header="Confirm" :modal="true">
                     <div class="flex align-items-center justify-content-center">
                         <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                        <span v-if="product">Are you sure you want to delete <b>{{ product.name }}</b>?</span>
+                        <span v-if="fgo_account">Are you sure you want to delete <b>{{ fgo_account.name }}</b>?</span>
                     </div>
                     <template #footer>
                         <Button label="No" icon="pi pi-times" class="p-button-text" @click="deleteProductDialog = false" />
@@ -327,7 +299,7 @@ const initFilters = () => {
                 <Dialog v-model:visible="deleteProductsDialog" :style="{ width: '450px' }" header="Confirm" :modal="true">
                     <div class="flex align-items-center justify-content-center">
                         <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                        <span v-if="product">Are you sure you want to delete the selected products?</span>
+                        <span v-if="fgo_account">Are you sure you want to delete the selected products?</span>
                     </div>
                     <template #footer>
                         <Button label="No" icon="pi pi-times" class="p-button-text" @click="deleteProductsDialog = false" />

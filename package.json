@@ -9,7 +9,7 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
     "pages:dev": "wrangler pages dev --compatibility-date=2023-06-13 --proxy 5173 -- yarn run dev",
-    "deploy": "yarn run build && wrangler pages deploy ./dist"
+    "pages:deploy": "yarn run build && wrangler pages   publish ./dist"
   },
   "dependencies": {
     "pg": "^8.11.0",
