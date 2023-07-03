@@ -1,4 +1,4 @@
-const url = 'http://127.0.0.1:8787'
+const url = 'https://fgo.mipajs.com'
 class FgoAccountService {
     async getFgoAccounts(params: any) {
         const res = await fetch(url + '/api/fgo-accounts?' + new URLSearchParams(params).toString())
