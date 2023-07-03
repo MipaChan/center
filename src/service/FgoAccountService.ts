@@ -6,6 +6,17 @@ class FgoAccountService {
         return data
     }
 
+    async login({ account, password }: { account: string, password: string }) {
+        const res = await fetch('https://test-fgo-test-fgo-wclknzerrd.cn-hangzhou.fcapp.run', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ account, password })
+        })
+        const data = await res.json()
+        return data
+    }
     async updateFgoAccount(id: string, obj: any) {
         const res = await fetch(url + '/api/fgo-accounts/' + id, {
             method: 'PATCH',

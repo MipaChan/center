@@ -84,6 +84,13 @@ const hideDialog = () => {
     submitted.value = false;
 };
 
+async function login(fgo_account) {
+    const res = await fgoAccountService.login({
+        account: fgo_account.account,
+        password: fgo_account.password
+    })
+    await onPage()
+}
 const saveProduct = () => {
     submitted.value = true;
     if (fgo_account.value.name && fgo_account.value.name.trim() && fgo_account.value.price) {
@@ -217,23 +224,27 @@ const initFilters = () => {
                     </Column>
                     <Column header="从者" headerStyle="width:14%; min-width:10rem;">
                         <template #body="slotProps">
-                            <span class="p-column-title">Image</span>
-                            <img :src="'https://static.atlasacademy.io/JP/Faces/f_8001000_bordered.png'"
-                                :alt="slotProps.data.image" class="shadow-2" width="50" />
-                            <img :src="'https://static.atlasacademy.io/JP/Faces/f_1001000_bordered.png'"
-                                :alt="slotProps.data.image" class="shadow-2" width="50" />
-                            <img :src="'https://static.atlasacademy.io/JP/Faces/f_1002000_bordered.png'"
-                                :alt="slotProps.data.image" class="shadow-2" width="50" />
-                            <img :src="'https://static.atlasacademy.io/JP/Faces/f_1003000_bordered.png'"
-                                :alt="slotProps.data.image" class="shadow-2" width="50" />
+                            <div>五星共 {{ slotProps.data?.parsed_data['svts_5']?.length }} 只</div>
+                            <!-- <div>重要: {{ slotProps.data?.parsed_data['svts_spec']?.length }}</div> -->
+                            <div>
+                                <span v-for="svt in slotProps.data?.parsed_data['svts_spec']">
+                                    【{{ svt?.nicknames[0] }}】
+                                </span>
+                            </div>
                         </template>
                     </Column>
                     <Column field="price" header="材料" headerStyle="width:14%; min-width:8rem;">
                         <template #body="slotProps">
-                            <span v-for="i in slotProps.data.parsed_data['items']">
-                                <Avatar :image="`https://static.atlasacademy.io/JP/Items/${i['itemId']}.png`" class="mr-2"
-                                    size="large" v-badge="i['num']" />
-                            </span>
+
+                            <Avatar :image="`https://static.atlasacademy.io/JP/Items/6.png`" class="mr-2" size="large"
+                                v-badge="slotProps.data.parsed_data['stone'] || 0" />
+                            <Avatar :image="`https://static.atlasacademy.io/JP/Items/4001.png`" class="mr-2" size="large"
+                                v-badge="slotProps.data.parsed_data['gachaTicket'] || 0" />
+                        </template>
+                    </Column>
+                    <Column field="message" header="信息" headerStyle="width:14%; min-width:8rem;">
+                        <template #body="slotProps">
+                            {{ slotProps.data.message }}
                         </template>
                     </Column>
                     <Column headerStyle="min-width:10rem;">
@@ -241,6 +252,9 @@ const initFilters = () => {
                             <Button label="编辑" text size="small" @click="editProduct(slotProps.data)" />
                             <Button label="删除" severity="danger" text size="small"
                                 @click="confirmDeleteProduct(slotProps.data)" />
+                            <Button label="登录" text size="small" @click="login(slotProps.data)" />
+                            <Button label="抽奖" text size="small" @click="editProduct(slotProps.data)" />
+                            <Button label="开始过章" text size="small" @click="editProduct(slotProps.data)" />
                         </template>
                     </Column>
                 </DataTable>
